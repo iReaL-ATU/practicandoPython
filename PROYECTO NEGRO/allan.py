@@ -1,4 +1,3 @@
-import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import pandas as pd
@@ -9,7 +8,6 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
-import threading
 
 # Configurar las opciones de Chrome
 options = webdriver.ChromeOptions()
@@ -34,12 +32,17 @@ def cargar_archivo():
     global df
     filepath = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx *.xls")])
     if filepath:
-        df = pd.read_excel(filepath)
-        print("Archivo cargado con éxito:")
-        print(df.head())  # Mostrar los primeros registros en la consola
-        messagebox.showinfo("Éxito", "Archivo Excel cargado correctamente.")
+        try:
+            df = pd.read_excel(filepath)
+            print("Archivo cargado con éxito:")
+            print(df.head())  # Mostrar los primeros registros en la consola para verificar
+            messagebox.showinfo("Éxito", "Archivo Excel cargado correctamente.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al cargar el archivo Excel: {e}")
+    else:
+        messagebox.showwarning("Advertencia", "No se seleccionó ningún archivo.")
 
-# Función para iniciar sesión en WhatsApp Web y enviar mensajes
+# Función para iniciar sesión en WhatsApp Web
 def iniciar_sesion_whatsapp():
     driver = webdriver.Chrome(service=chrome_service, options=options)
     
@@ -56,9 +59,10 @@ def iniciar_sesion_whatsapp():
     
     except Exception as e:
         print(f"Error al cargar WhatsApp Web: {e}")
-    
-    finally:
         driver.quit()
+        return None
+    
+    return driver
 
 # Función para enviar mensajes usando los datos del archivo Excel
 def enviar_mensajes():
@@ -69,23 +73,29 @@ def enviar_mensajes():
     
     print("Enviando mensajes...")
     
-    driver = webdriver.Chrome(service=chrome_service, options=options)
+    driver = iniciar_sesion_whatsapp()
+    if driver is None:
+        messagebox.showerror("Error", "Error al iniciar sesión en WhatsApp Web.")
+        return
     
     try:
-        driver.get("https://web.whatsapp.com")
-        WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'canvas'))
-        )
-        
         # Esperar a que se cargue WhatsApp Web
-        time.sleep(10)
+        time.sleep(20)  # Aumentar el tiempo de espera para asegurarse de que WhatsApp Web esté completamente cargado
 
         for index, row in df.iterrows():
-            numero = str(row['+51590692976'])  # Convertir el número a cadena
-            mensaje = row['GAAAAAAAAAAAA']
+            numero = str(row['Numero'])  # Ajusta el nombre de la columna según tu archivo Excel
+            mensaje = row['Mensaje']  # Ajusta el nombre de la columna según tu archivo Excel
+
+            # Verificar que ambos campos no estén vacíos
+            if pd.isna(numero) or pd.isna(mensaje):
+                print(f"Fila {index + 1}: Número o mensaje vacío. Se omite esta fila.")
+                continue
 
             # Abrir la conversación con el número
             driver.get(f"https://web.whatsapp.com/send?phone={numero}&text={mensaje}")
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'div[data-tab="1"]'))
+            )
             time.sleep(5)
 
             # Enviar el mensaje
@@ -98,7 +108,8 @@ def enviar_mensajes():
     except Exception as e:
         messagebox.showerror("Error", f"Error al enviar mensajes en WhatsApp Web: {e}")
     
-    
+    finally:
+        driver.quit()
 
 # Crear la ventana principal
 root = tk.Tk()
