@@ -14,11 +14,11 @@ def upload_file():
             df = pd.read_excel(file_path, skiprows=1, header=None)
             
             # Asignar nombres a las columnas
-            df.columns = ['numero', 'mensaje']
+            df.columns = ['celular', 'proveedor']
             
             # Convertir a listas
-            numeros = df['numero'].tolist()
-            mensajes = df['mensaje'].tolist()
+            numeros = df['celular'].tolist()
+            mensajes = df['proveedor'].tolist()
 
             # Enviar mensajes
             send_messages(numeros, mensajes)
